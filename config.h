@@ -30,7 +30,7 @@ static float chscale = 1.0;
 /*
  * word delimiter string
  *
- * More advanced example: " `'\"()[]{}"
+ * More advanced example: L" `'\"()[]{}"
  */
 char *worddelimiters = " `'\"()[]{}";
 
@@ -83,8 +83,9 @@ char *termname = "st-256color";
 unsigned int tabspaces = 4;
 
 /* bg opacity */
-unsigned int alpha = 0xed;
+float alpha = 0.92;
 
+/* Terminal colors (16 first used in escape sequence) */
 static const char *colorname[] = {
 	"#282828", /* hard contrast: #1d2021 / soft contrast: #32302f */
 	"#cc241d",
@@ -104,8 +105,9 @@ static const char *colorname[] = {
 	"#ebdbb2",
 	[255] = 0,
 	/* more colors can be added after 255 to use with DefaultXX */
-	"black",   /* 256 -> bg */
-	"white",   /* 257 -> fg */
+	"#282828",   /* 256 -> bg */
+	"#ebdbb2",   /* 257 -> fg */
+	"#add8e6", /* 258 -> cursor */
 };
 
 
@@ -178,9 +180,10 @@ ResourcePref resources[] = {
 		{ "blinktimeout", INTEGER, &blinktimeout },
 		{ "bellvolume",   INTEGER, &bellvolume },
 		{ "tabspaces",    INTEGER, &tabspaces },
+		{ "borderpx",     INTEGER, &borderpx },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
-		{ "alpha",      INTEGER,   &alpha },
+		{ "alpha",        FLOAT,   &alpha },
 };
 
 /*
@@ -203,10 +206,19 @@ MouseKey mkeys[] = {
 	{ Button5,              ShiftMask,      kscrolldown,    {.i =  1} },
 	{ Button4,              MODKEY,         kscrollup,      {.i =  1} },
 	{ Button5,              MODKEY,         kscrolldown,    {.i =  1} },
-	{ Button4,              MODKEY|ShiftMask,         zoom,      {.f =  +1} },
-	{ Button5,              MODKEY|ShiftMask,         zoom,    {.f =  -1} },
+	{ Button4,              TERMMOD,        zoom,           {.f =  +1} },
+	{ Button5,              TERMMOD,        zoom,           {.f =  -1} },
 };
 
+static char *openurlcmd[] = { "/bin/sh", "-c",
+    "sed 's/.*│//g' | tr -d '\n' | grep -aEo '((http|https)://|www\\.)[a-zA-Z0-9.]*[:]?[a-zA-Z0-9./&%?=_-]*' | uniq | sed 's/^www./http:\\/\\/www\\./g' | dmenu -p 'Follow which url?' -l 10 | xargs -r xdg-open",
+    "externalpipe", NULL };
+
+static char *copyurlcmd[] = { "/bin/sh", "-c",
+    "sed 's/.*│//g' | tr -d '\n' | grep -aEo '((http|https)://|www\\.)[a-zA-Z0-9.]*[:]?[a-zA-Z0-9./&%?=_-]*' | uniq | sed 's/^www./http:\\/\\/www\\./g' | dmenu -p 'Copy which url?' -l 10 | tr -d '\n' | xclip -selection clipboard",
+    "externalpipe", NULL };
+
+static char *copyoutput[] = { "/bin/sh", "-c", "st-copyout", "externalpipe", NULL };
 
 static Shortcut shortcuts[] = {
 	/* mask                 keysym          function        argument */
